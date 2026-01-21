@@ -8,7 +8,7 @@ Addon.newsList = {
     },
     ['1.4.11'] = {
         title = '1.4.11. Farewell!',
-        text = 'First of all, I want to thank you for using this addon. It\'s the only thing that gave me the strength to develop it. You are the best! <3\nUnfortunately, I haven\'t played WoW since mid-Protect. I don\'t have TWW, and I don\'t plan to play in Midnight. However, I tried to keep the addon working with the PTR. But that\'s no longer possible for Midnight.\nI\'m not sure my addon will work in the future, so I want to thank you and advise you to look for an alternative.\nGoodbye!',
+        text = 'First of all, I want to thank you for using this addon. It\'s the only thing that gave me the strength to develop it. You are the best! <3\nUnfortunately, I haven\'t played WoW since mid-DF. I don\'t have TWW, and I don\'t plan to play in Midnight. However, I tried to keep the addon working with the PTR. But that\'s no longer possible for Midnight.\nI\'m not sure my addon will work in the future, so I want to thank you and advise you to look for an alternative.\nGoodbye!',
         picture = "Interface\\AddOns\\IPMythicTimer\\media\\news\\1_4_11.png",
     },
 }
