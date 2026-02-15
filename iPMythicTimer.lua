@@ -4,64 +4,75 @@ local function toggleOptions()
     Addon:ShowOptions()
 end
 
-local function OnTooltipSetUnit(tooltip)
-    if IPMTDungeon == nil or not IPMTDungeon.keyActive then
-        return false
+----------------------------------------------------------------
+-- Tooltip handler (SECURE / DF+ SAFE)
+----------------------------------------------------------------
+local function OnTooltipSetUnit(tooltip, data)
+    -- Kein aktiver Key → nichts tun
+    if not IPMTDungeon or not IPMTDungeon.keyActive then
+        return
     end
-    if IPMTDungeon.trash.total > 0 then
-        local unit = select(2, tooltip:GetUnit())
-        local guID = unit and UnitGUID(unit)
 
-        if guID then
-            local npcInfo = nil
-            if Addon.season.GetInfoByNamePlate then
-                npcInfo = Addon.season:GetInfoByNamePlate(unit)
-            end
-            if npcInfo == nil then
-                local npcID = select(6, strsplit("-", guID))
-                local percent = Addon:GetEnemyForces(npcID)
-                if (percent ~= nil) then
-                    if IPMTOptions.progress == Addon.PROGRESS_FORMAT_PERCENT then
-                        percent = percent .. "%"
-                    end
-                    tooltip:AddDoubleLine("|cFFEEDE70" .. percent)
-                end
-            end
-            if npcInfo ~= nil then
-                tooltip:AddLine(npcInfo.tooltip)
-            end
+    -- Keine Trashdaten
+    if not IPMTDungeon.trash or IPMTDungeon.trash.total <= 0 then
+        return
+    end
+
+    -- TooltipData prüfen (DF+ Weg)
+    if not data or not data.guid then
+        return
+    end
+
+    local guid = data.guid
+    local npcID = select(6, strsplit("-", guid))
+    if not npcID then
+        return
+    end
+
+    local npcInfo
+
+    -- OPTIONAL: Season / Nameplate Info
+    -- Nameplates nur nutzen, wenn erlaubt
+    if Addon.season and Addon.season.GetInfoByNamePlate then
+        local unit = data.unit
+        if unit and type(unit) == "string" and unit:match("^nameplate") then
+            npcInfo = Addon.season:GetInfoByNamePlate(unit)
         end
+    end
+
+    -- Enemy Forces anzeigen
+    if not npcInfo then
+        local percent = Addon:GetEnemyForces(npcID)
+        if percent then
+            if IPMTOptions.progress == Addon.PROGRESS_FORMAT_PERCENT then
+                percent = percent .. "%"
+            end
+            tooltip:AddDoubleLine("|cFFEEDE70" .. percent)
+        end
+    end
+
+    -- Zusatz-Tooltip aus Season
+    if npcInfo and npcInfo.tooltip then
+        tooltip:AddLine(npcInfo.tooltip)
     end
 end
 
+----------------------------------------------------------------
+-- DEBUG (unverändert, nur aufgeräumt)
+----------------------------------------------------------------
 local debugLines = {}
-local function PrintDebug()
---[[    local text = Addon:PrintObject(IPMTDungeon, 'dungeon.', true)
-    text = text .. "\n\n" .. Addon:PrintObject(IPMTOptions, 'IPMTOptions.', true)
-    
-    text = text .. "\n\n FRAMES \n\n"
-    for frame, info in pairs(Addon.frameInfo) do
-        if info.text ~= nil then
-            text = text .. frame .. ".text = '" .. Addon.fMain[frame].text:GetText() .. "'\n"
-            local fontName, fontSize = Addon.fMain[frame].text:GetFont()
-            text = text .. frame .. ".font = '" .. fontName .. "'\n"
-            text = text .. frame .. ".size = " .. fontSize .. "\n"
-        end
-    end--]]
 
---[[
-    local text = Addon:PrintObject(Addon.theme, 'Addon.theme.', true)
-    text = text .. "\n\n" .. Addon:PrintObject(IPMTTheme, 'IPMTTheme.', true)
---]]
+local function PrintDebug()
     local text = ""
-    for i,line in ipairs(debugLines) do
+    for i, line in ipairs(debugLines) do
         text = text .. line .. "\n"
     end
 
     if not Addon.fDebug:IsShown() then
         Addon.fDebug:Show()
-        print('debug')
+        print("debug")
     end
+
     Addon.fDebug.textarea:SetText(text)
 end
 
@@ -69,17 +80,22 @@ function Addon:ClearDebug()
     debugLines = {}
     PrintDebug()
 end
+
 function Addon:AddDebug(text)
     if #debugLines >= 17 then
-       table.remove(debugLines, 1)
+        table.remove(debugLines, 1)
     end
     table.insert(debugLines, text)
     PrintDebug()
 end
 
+----------------------------------------------------------------
+-- ADDON START
+----------------------------------------------------------------
 function Addon:StartAddon()
     SLASH_IPMTOPTS1 = "/ipmt"
     SLASH_IPMTDEBUG1 = "/ipmt_debug"
+
     SlashCmdList["IPMTOPTS"] = toggleOptions
     SlashCmdList["IPMTDEBUG"] = PrintDebug
 
@@ -91,7 +107,11 @@ function Addon:StartAddon()
     Addon.fMain:RegisterEvent("CHALLENGE_MODE_KEYSTONE_RECEPTABLE_OPEN")
     Addon.fMain:RegisterEvent("VARIABLES_LOADED")
 
-    TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, OnTooltipSetUnit)
+    -- SECURE Tooltip Hook (DF+)
+    TooltipDataProcessor.AddTooltipPostCall(
+        Enum.TooltipDataType.Unit,
+        OnTooltipSetUnit
+    )
 
     DEFAULT_CHAT_FRAME:AddMessage(Addon.localization.STARTINFO)
 end
