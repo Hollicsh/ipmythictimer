@@ -6,6 +6,13 @@ local STONEBORN_SPELL = 342171
 local DEVOURING_MAGGOT_ID = 134024
 local DEVOURING_MAGGOT_SPELL = 278444
 
+local UnitExists = UnitExists
+local UnitCanAttack = UnitCanAttack
+local UnitIsDead = UnitIsDead
+local UnitThreatSituation = UnitThreatSituation
+local UnitPlayerControlled = UnitPlayerControlled
+local UnitAffectingCombat = UnitAffectingCombat
+
 function Addon:GetNameplateInfo(nameplate)
     local unitName, unitExists = nil, nil
     if nameplate and nameplate.UnitFrame then
@@ -21,7 +28,8 @@ local function GrabPrognosis()
         inCombat = true
     else
         for i=1,4 do
-            if UnitExists("party" .. i) and UnitAffectingCombat("party" .. i) then
+            local unit = "party" .. i
+            if UnitExists(unit) and UnitAffectingCombat(unit) then
                 inCombat = true
                 break
             end
@@ -31,25 +39,34 @@ local function GrabPrognosis()
     if inCombat then
         for _, nameplate in pairs(C_NamePlate.GetNamePlates()) do
             local unitName, unitExists = Addon:GetNameplateInfo(nameplate)
-            if unitExists and UnitCanAttack("player", unitName) and not UnitIsDead(unitName) then
+
+            if unitExists and unitName and UnitCanAttack("player", unitName) and not UnitIsDead(unitName) then
                 local threat = UnitThreatSituation("player", unitName) or -1
-                if threat >= 0 or UnitPlayerControlled(unitName .. "target") then
-                    local guID = UnitGUID(unitName)
-                    local _, _, _, _, _, npcID, spawnID = strsplit("-", guID)
-                    if spawnID ~= nil and npcID ~= nil then
-                        local npcUID = spawnID .. "_" .. npcID
-                        local npcInfo = nil
-                        if Addon.season.GetInfoByNamePlate then
-                            npcInfo = Addon.season:GetInfoByNamePlate(unitName, npcUID)
-                        end
-                        if npcInfo ~= nil then
-                            IPMTDungeon.prognosis[npcUID] = npcInfo.forces
-                        else
-                            if not IPMTDungeon.checkmobs[npcUID] and not IPMTDungeon.prognosis[npcUID] then
-                                local forces = Addon:GetEnemyForces(npcID, Addon.PROGRESS_FORMAT_FORCES)
-                                if forces then
-                                    IPMTDungeon.prognosis[npcUID] = forces
-                                end
+
+                local allow = false
+                if threat >= 0 then
+                    allow = true
+                else
+                    local targetUnit = unitName .. "target"
+                    if UnitExists(targetUnit) and UnitPlayerControlled(targetUnit) then
+                        allow = true
+                    end
+                end
+
+                if allow then
+                    local npcID = nil
+
+                    if Addon.GetNPCIDFromUnit then
+                        npcID = Addon:GetNPCIDFromUnit(unitName)
+                    end
+
+                    if npcID then
+                        local npcUID = unitName -- fallback unique key
+
+                        if not IPMTDungeon.checkmobs[npcUID] and not IPMTDungeon.prognosis[npcUID] then
+                            local forces = Addon:GetEnemyForces(npcID, Addon.PROGRESS_FORMAT_FORCES)
+                            if forces then
+                                IPMTDungeon.prognosis[npcUID] = forces
                             end
                         end
                     end
@@ -65,7 +82,7 @@ function Addon:ShowPrognosis()
     GrabPrognosis()
 
     local prognosis = 0
-    for npcUID, percent in pairs(IPMTDungeon.prognosis) do
+    for _, percent in pairs(IPMTDungeon.prognosis) do
         if percent then
             prognosis = prognosis + percent
         end
@@ -73,9 +90,11 @@ function Addon:ShowPrognosis()
 
     if prognosis > 0 then
         local progress = IPMTDungeon.trash.current + prognosis
-        if Addon.season.isActive and Addon.season.Prognosis then
+
+        if Addon.season and Addon.season.isActive and Addon.season.Prognosis then
             Addon.season:Prognosis(progress)
         end
+
         if IPMTOptions.progress == Addon.PROGRESS_FORMAT_PERCENT then
             progress = progress / IPMTDungeon.trash.total * 100
             if IPMTOptions.limitProgress then
@@ -106,25 +125,34 @@ function Addon:ShowPrognosis()
 end
 
 function Addon:PrognosisCheck()
-    local timestamp, event, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, x12, x13, x14, x15 = CombatLogGetCurrentEventInfo()
+    local _, event, _, sourceGUID, _, _, _, destGUID, _, _, _, spellId =
+        CombatLogGetCurrentEventInfo()
 
     if event == "SPELL_AURA_APPLIED" then
-        local _, _, _, _, _, npcID, spawnID = strsplit("-", sourceGUID)
-        -- Devouring Maggot applied "Infest" and despawn (no more give force)
-        if tonumber(npcID) == DEVOURING_MAGGOT_ID and tonumber(x12) == DEVOURING_MAGGOT_SPELL then
-            local npcUID = spawnID .. "_" .. npcID
-            IPMTDungeon.prognosis[npcUID] = 0
-            IPMTDungeon.checkmobs[npcUID] = true
-            return
+        if sourceGUID then
+            local _, _, _, _, _, npcID, spawnID = strsplit("-", sourceGUID)
+            -- Devouring Maggot applied "Infest" and despawn (no more give force)
+            if tonumber(npcID) == DEVOURING_MAGGOT_ID and tonumber(spellId) == DEVOURING_MAGGOT_SPELL then
+                if spawnID then
+                    local npcUID = spawnID .. "_" .. npcID
+                    IPMTDungeon.prognosis[npcUID] = 0
+                    IPMTDungeon.checkmobs[npcUID] = true
+                end
+                return
+            end
         end
 
-        local _, _, _, _, _, npcID, spawnID = strsplit("-", destGUID)
-        -- Loyal Stoneborn mind control by Ventyr's
-        if tonumber(npcID) == STONEBORN_ID and tonumber(x12) == STONEBORN_SPELL then
-            local npcUID = spawnID .. "_" .. npcID
-            IPMTDungeon.prognosis[npcUID] = 0
-            IPMTDungeon.checkmobs[npcUID] = true
-            return
+        if destGUID then
+            local _, _, _, _, _, npcID, spawnID = strsplit("-", destGUID)
+            -- Loyal Stoneborn mind control by Ventyr's
+            if tonumber(npcID) == STONEBORN_ID and tonumber(spellId) == STONEBORN_SPELL then
+                if spawnID then
+                    local npcUID = spawnID .. "_" .. npcID
+                    IPMTDungeon.prognosis[npcUID] = 0
+                    IPMTDungeon.checkmobs[npcUID] = true
+                end
+                return
+            end
         end
     end
 end
