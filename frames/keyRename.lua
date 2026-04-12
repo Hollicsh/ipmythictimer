@@ -5,7 +5,10 @@ local KEY_HEIGHT = 70
 local keyMapIds = {
     {
         caption = Addon.localization.CURSEASON,
-        ids = {503,505,542,378,525,499,391,392},
+        ids = {239,161,560,557,556,558,559,402},
+    }, {
+        caption = "Midnight",
+        ids = {557,558,559,560},
     }, {
         caption = "The War Within",
         ids = {499,500,501,502,503,504,505,506,525,542},
@@ -20,10 +23,10 @@ local keyMapIds = {
         ids = {244,245,246,247,249,248,250,251,252,353,369,370},
     }, {
         caption = "Legion",
-        ids = {197,198,199,200,206,207,208,209,210,227,234,233},
+        ids = {197,198,199,200,206,207,208,209,210,227,234,233,239},
     }, {
         caption = "Warlords of Draenor",
-        ids = {165,166,168,169},
+        ids = {161,165,166,168,169},
     }, {
         caption = "Mists of Pandaria",
         ids = {2},
