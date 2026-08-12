@@ -8,10 +8,11 @@ Addon.MDTdungeon = {
     [557] = 152,-- Windrunner Spire
     [559] = 155,-- Nexus Point Xenas
     [560] = 154,-- Maisara Caverns
---  [0] = 160,-- Murder Row
---  [0] = 0, -- Den of Nalorakk
---  [0] = nil, -- The Blinding Vale
---  [0] = nil, -- Voidscar Arena
+    [584] = 162, -- The Blinding Vale
+    [585] = 163, -- Voidscar Arena
+    [586] = 161, -- Den of Nalorakk
+    [587] = 160, -- Murder Row
+    [588] = 164, -- Altar of Fangs
 
 -- TWW
     [499] = 115,-- Priory of the Sacred Flame
@@ -100,44 +101,31 @@ Addon.MDTdungeon = {
     [558] = 153, -- Magister's Terrace
 }
 
-
 function Addon:GetForcesFromMDT(npcID, wsave)
-    npcID = tonumber(npcID)
-    if not MDT then
+    local MDTAPI = _G["MythicDungeonToolsAPI"]
+    if not MDTAPI then
         return nil
     end
-    local npcInfos = MDT.dungeonEnemies[Addon.MDTdungeon[IPMTDungeon.keyMapId]]
-    if npcInfos then
-        for i,npcInfo in pairs(npcInfos) do
-            if npcInfo.id == npcID then
-                if wsave then
-                    if IPMTDB[IPMTDungeon.keyMapId] == nil then
-                        IPMTDB[IPMTDungeon.keyMapId] = {}
-                    end
-                    if IPMTDB[IPMTDungeon.keyMapId][npcID] == nil then
-                        IPMTDB[IPMTDungeon.keyMapId][npcID] = {}
-                    end
-                    if IPMTDungeon.isTeeming and npcInfo.teemingCount then
-                        IPMTDB[IPMTDungeon.keyMapId][npcID][IPMTDungeon.isTeeming] = npcInfo.teemingCount
-                    else
-                        IPMTDB[IPMTDungeon.keyMapId][npcID][IPMTDungeon.isTeeming] = npcInfo.count
-                    end
-                end
-                return npcInfo.count
-            end
+    npcID = tonumber(npcID)
+    local count = MDTAPI:GetEnemyForces(npcID)
+    if count ~= nil then
+        if wsave then
+            IPMTDB[npcID] = count
         end
+        return count
     end
     return nil
 end
 
 function Addon:MDTHasDB()
-    for mapID in pairs(Addon.MDTdungeon) do
-        if MDT.dungeonEnemies[Addon.MDTdungeon[mapID]] ~= nil and #MDT.dungeonEnemies[Addon.MDTdungeon[mapID]] > 0 then
-            return true
-        end
+    local MDTAPI = _G["MythicDungeonToolsAPI"]
+    if MDTAPI and MDTAPI:GetEnemyForces(270306) then
+        return true
     end
     return false
 end
+
+
 
 function Addon:CheckMDTVersion(MDTName)
     local MDTversion = C_AddOns.GetAddOnMetadata(MDTName, 'Version')

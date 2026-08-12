@@ -16,8 +16,8 @@ function Addon:GetEnemyForces(npcID, progressFormat)
     end
 
     if forces == nil and Addon.ignoredNPC[npcID] == nil then
-        if IPMTDB and IPMTDB[IPMTDungeon.keyMapId] and IPMTDB[IPMTDungeon.keyMapId][npcID] and IPMTDB[IPMTDungeon.keyMapId][npcID][IPMTDungeon.isTeeming] then
-            forces = IPMTDB[IPMTDungeon.keyMapId][npcID][IPMTDungeon.isTeeming]
+        if IPMTDB and IPMTDB[npcID] then
+            forces = IPMTDB[npcID]
         else
             forces = Addon:GetForcesFromMDT(npcID, true)
         end
@@ -757,7 +757,9 @@ function Addon:OnEvent(self, event, ...)
         elseif arg1 == 'NamePlateKAI' then
             Addon:NamePlateKAIfix()
         elseif arg1 == 'MDT' or arg1 == 'MythicDungeonTools' then
-            Addon:CheckMDTVersion(arg1)
+            C_Timer.After(0.5, function()
+                Addon:CheckMDTVersion(arg1)
+            end)
         end
     elseif event == "CHALLENGE_MODE_DEATH_COUNT_UPDATED" then
         Addon.deaths:Update()
